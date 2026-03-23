@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import dataclasses
+import logging
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 try:
@@ -15,7 +17,6 @@ try:
     from ..db.base import RoomRepository, BookingRepository, UserRepository
     from ..shared.config import get_db_path
 except ImportError:
-    # Absolute imports when room-booking-api/ is on sys.path directly
     from core.models import BookingError  # type: ignore
     from core import rooms as rooms_core  # type: ignore
     from core import bookings as bookings_core  # type: ignore
@@ -24,10 +25,18 @@ except ImportError:
     from db.base import RoomRepository, BookingRepository, UserRepository  # type: ignore
     from shared.config import get_db_path  # type: ignore
 
+logger = logging.getLogger("room_booking")
+
 
 def _to_dict(obj) -> dict:
-    """Convert a dataclass instance to a plain dict."""
     return dataclasses.asdict(obj)
+
+
+def _user_safe(user) -> dict:
+    """Return user dict without password_hash."""
+    d = _to_dict(user)
+    d.pop("password_hash", None)
+    return d
 
 
 def create_app(
@@ -35,132 +44,148 @@ def create_app(
     booking_repo: BookingRepository,
     user_repo: UserRepository,
 ) -> FastAPI:
-    app = FastAPI(title="Room Booking API")
+    app = FastAPI(title="Apexon Room Booking API", version="3.0.0")
 
-    # ------------------------------------------------------------------
-    # Global exception handler
-    # ------------------------------------------------------------------
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"], allow_credentials=True,
+        allow_methods=["*"], allow_headers=["*"],
+    )
 
     @app.exception_handler(BookingError)
     async def booking_error_handler(request: Request, exc: BookingError):
-        return JSONResponse(
-            status_code=exc.http_status,
-            content={"error": exc.message, "detail": exc.detail},
-        )
+        return JSONResponse(status_code=exc.http_status, content={"error": exc.message, "detail": exc.detail})
 
-    # ------------------------------------------------------------------
-    # Health
-    # ------------------------------------------------------------------
-
+    # ── Health & Stats ────────────────────────────────────────────────────
     @app.get("/health")
     async def health():
         return {"status": "ok"}
 
-    # ------------------------------------------------------------------
-    # Rooms
-    # ------------------------------------------------------------------
+    @app.get("/stats")
+    async def stats():
+        rooms = rooms_core.list_rooms(room_repo)
+        bookings = bookings_core.list_bookings(booking_repo)
+        users = users_core.list_users(user_repo)
+        from datetime import date as _date
+        today = _date.today().isoformat()
+        active_rooms = sum(1 for r in rooms if r.status == "active")
+        confirmed = [b for b in bookings if b.status == "confirmed"]
+        cancelled = [b for b in bookings if b.status == "cancelled"]
+        today_bookings = [b for b in confirmed if b.start_time[:10] == today]
+        total = len(bookings)
+        return {
+            "total_rooms": len(rooms), "active_rooms": active_rooms,
+            "total_bookings": total, "confirmed_bookings": len(confirmed),
+            "cancelled_bookings": len(cancelled), "today_bookings": len(today_bookings),
+            "total_users": len(users),
+            "cancel_rate": round(len(cancelled) / total * 100, 1) if total else 0,
+        }
 
-    @app.get("/rooms", status_code=200)
-    async def list_rooms_route(
-        capacity: Optional[int] = Query(None),
-        floor: Optional[int] = Query(None),
-        amenities: Optional[str] = Query(None),
-    ):
+    # ── Auth ──────────────────────────────────────────────────────────────
+    @app.post("/auth/register", status_code=201)
+    async def register(request: Request):
+        data = await request.json()
+        user = users_core.register_user(user_repo, data)
+        return _user_safe(user)
+
+    @app.post("/auth/login")
+    async def login(request: Request):
+        data = await request.json()
+        email = data.get("email", "")
+        password = data.get("password", "")
+        user = users_core.login_user(user_repo, email, password)
+        return _user_safe(user)
+
+
+    # ── Rooms ─────────────────────────────────────────────────────────────
+    @app.get("/rooms")
+    async def list_rooms_route(capacity: Optional[int] = Query(None), floor: Optional[int] = Query(None), amenities: Optional[str] = Query(None)):
         amenities_list = [a.strip() for a in amenities.split(",")] if amenities else None
-        result = rooms_core.list_rooms(room_repo, capacity=capacity, amenities=amenities_list, floor=floor)
-        return [_to_dict(r) for r in result]
+        return [_to_dict(r) for r in rooms_core.list_rooms(room_repo, capacity=capacity, amenities=amenities_list, floor=floor)]
 
     @app.post("/rooms", status_code=201)
     async def create_room_route(request: Request):
-        data = await request.json()
-        room = rooms_core.create_room(room_repo, data)
-        return _to_dict(room)
+        return _to_dict(rooms_core.create_room(room_repo, await request.json()))
 
-    @app.get("/rooms/{room_id}", status_code=200)
+    @app.get("/rooms/{room_id}")
     async def get_room_route(room_id: str):
-        room = rooms_core.get_room(room_repo, room_id)
-        return _to_dict(room)
+        return _to_dict(rooms_core.get_room(room_repo, room_id))
 
-    @app.put("/rooms/{room_id}", status_code=200)
+    @app.put("/rooms/{room_id}")
     async def update_room_route(room_id: str, request: Request):
-        data = await request.json()
-        room = rooms_core.update_room(room_repo, room_id, data)
-        return _to_dict(room)
+        return _to_dict(rooms_core.update_room(room_repo, room_id, await request.json()))
 
     @app.delete("/rooms/{room_id}", status_code=204)
     async def deactivate_room_route(room_id: str):
         rooms_core.deactivate_room(room_repo, room_id)
 
-    @app.get("/rooms/{room_id}/availability", status_code=200)
+    @app.get("/rooms/{room_id}/availability")
     async def room_availability_route(room_id: str, date: str = Query(...)):
         result = bookings_core.get_room_availability(booking_repo, room_repo, room_id, date)
-        return _to_dict(result)
+        data = _to_dict(result)
+        from shared.config import get_business_hours_start, get_business_hours_end
+        from datetime import datetime as _dt, timedelta as _td
+        sh, sm = map(int, get_business_hours_start().split(":"))
+        eh, em = map(int, get_business_hours_end().split(":"))
+        d = _dt.strptime(date, "%Y-%m-%d").date() if "T" not in date else _dt.fromisoformat(date).date()
+        cursor = _dt(d.year, d.month, d.day, sh, sm)
+        end = _dt(d.year, d.month, d.day, eh, em)
+        booked = sorted(data.get("booked_slots", []), key=lambda x: x["start_time"])
+        ranges = [(_dt.fromisoformat(b["start_time"]), _dt.fromisoformat(b["end_time"]), b) for b in booked]
+        slots = []
+        while cursor < end:
+            slot_end = cursor + _td(minutes=30)
+            if slot_end > end:
+                break
+            is_booked = any(cursor < be and slot_end > bs for bs, be, _ in ranges)
+            title = next((bi.get("title", "Booked") for bs, be, bi in ranges if cursor < be and slot_end > bs), "")
+            slots.append({"start_time": cursor.isoformat(), "end_time": slot_end.isoformat(), "is_available": not is_booked, "booking_title": title})
+            cursor = slot_end
+        data["slots"] = slots
+        return data
 
-    # ------------------------------------------------------------------
-    # Bookings
-    # ------------------------------------------------------------------
 
-    @app.get("/bookings", status_code=200)
-    async def list_bookings_route(
-        user_id: Optional[str] = Query(None),
-        room_id: Optional[str] = Query(None),
-        date: Optional[str] = Query(None),
-        status: Optional[str] = Query(None),
-    ):
-        result = bookings_core.list_bookings(booking_repo, user_id=user_id, room_id=room_id, date=date, status=status)
-        return [_to_dict(b) for b in result]
+    # ── Bookings ──────────────────────────────────────────────────────────
+    @app.get("/bookings")
+    async def list_bookings_route(user_id: Optional[str] = Query(None), room_id: Optional[str] = Query(None), date: Optional[str] = Query(None), status: Optional[str] = Query(None)):
+        return [_to_dict(b) for b in bookings_core.list_bookings(booking_repo, user_id=user_id, room_id=room_id, date=date, status=status)]
 
     @app.post("/bookings", status_code=201)
     async def create_booking_route(request: Request):
-        data = await request.json()
-        booking = bookings_core.create_booking(booking_repo, room_repo, user_repo, data)
-        return _to_dict(booking)
+        return _to_dict(bookings_core.create_booking(booking_repo, room_repo, user_repo, await request.json()))
 
-    @app.get("/bookings/{booking_id}", status_code=200)
+    @app.get("/bookings/{booking_id}")
     async def get_booking_route(booking_id: str):
-        booking = bookings_core.get_booking(booking_repo, booking_id)
-        return _to_dict(booking)
+        return _to_dict(bookings_core.get_booking(booking_repo, booking_id))
 
-    @app.put("/bookings/{booking_id}", status_code=200)
+    @app.put("/bookings/{booking_id}")
     async def update_booking_route(booking_id: str, request: Request):
-        data = await request.json()
-        booking = bookings_core.update_booking(booking_repo, room_repo, user_repo, booking_id, data)
-        return _to_dict(booking)
+        return _to_dict(bookings_core.update_booking(booking_repo, room_repo, user_repo, booking_id, await request.json()))
 
-    @app.delete("/bookings/{booking_id}", status_code=200)
+    @app.delete("/bookings/{booking_id}")
     async def cancel_booking_route(booking_id: str):
-        booking = bookings_core.cancel_booking(booking_repo, booking_id)
-        return _to_dict(booking)
+        return _to_dict(bookings_core.cancel_booking(booking_repo, booking_id))
 
-    # ------------------------------------------------------------------
-    # Users
-    # ------------------------------------------------------------------
-
-    @app.get("/users", status_code=200)
+    # ── Users ─────────────────────────────────────────────────────────────
+    @app.get("/users")
     async def list_users_route():
-        result = users_core.list_users(user_repo)
-        return [_to_dict(u) for u in result]
+        return [_user_safe(u) for u in users_core.list_users(user_repo)]
 
     @app.post("/users", status_code=201)
     async def create_user_route(request: Request):
-        data = await request.json()
-        user = users_core.create_user(user_repo, data)
-        return _to_dict(user)
+        return _user_safe(users_core.create_user(user_repo, await request.json()))
 
-    @app.get("/users/{user_id}", status_code=200)
+    @app.get("/users/{user_id}")
     async def get_user_route(user_id: str):
-        user = users_core.get_user(user_repo, user_id)
-        return _to_dict(user)
+        return _user_safe(users_core.get_user(user_repo, user_id))
 
-    @app.get("/users/{user_id}/bookings", status_code=200)
+    @app.get("/users/{user_id}/bookings")
     async def get_user_bookings_route(user_id: str):
-        result = users_core.get_user_bookings(booking_repo, user_id)
-        return [_to_dict(b) for b in result]
+        return [_to_dict(b) for b in users_core.get_user_bookings(booking_repo, user_id)]
 
     return app
 
 
-# Module-level default app instance
 def _make_default_app() -> FastAPI:
     db_path = get_db_path()
     return create_app(

@@ -14,8 +14,8 @@ def render_rooms() -> None:
     h_col, btn_col = st.columns([3, 1])
     with h_col:
         st.markdown(
-            '<div class="rb-page-title">🏢 Rooms</div>'
-            '<div class="rb-page-subtitle">Manage your workspace rooms and availability</div>',
+            '<div class="rb-page-title">🏢 Meeting Rooms</div>'
+            '<div class="rb-page-subtitle">Manage your workspace rooms, amenities, and availability</div>',
             unsafe_allow_html=True,
         )
     with btn_col:
@@ -85,15 +85,20 @@ def render_rooms() -> None:
 
     # ── Filters ───────────────────────────────────────────────────────────────
     with st.expander("🔍 Filter Rooms", expanded=False):
-        fc1, fc2 = st.columns(2)
+        fc1, fc2, fc3 = st.columns(3)
         min_cap = fc1.number_input("Min Capacity", min_value=0, value=0, help="Minimum number of seats")
         amenity_f = fc2.multiselect("Required Amenities", options=AMENITY_OPTIONS)
+        status_filter = fc3.selectbox("Status", options=["All", "Active", "Inactive"], key="room_status_filter")
 
     with st.spinner(""):
         rooms = get_rooms(
             capacity=int(min_cap) if min_cap > 0 else None,
             amenities=amenity_f if amenity_f else None,
         )
+
+    # Apply status filter client-side
+    if status_filter != "All":
+        rooms = [r for r in rooms if r.get("status") == status_filter.lower()]
 
     if not rooms:
         st.markdown(
@@ -106,18 +111,22 @@ def render_rooms() -> None:
 
     # ── Summary bar ───────────────────────────────────────────────────────────
     active_count = sum(1 for r in rooms if r.get("status") == "active")
+    total_capacity = sum(r.get("capacity", 0) for r in rooms)
     st.markdown(
         f"""
         <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;
                     padding:0.75rem 1rem;background:#0f1420;border:1px solid #1e2a45;border-radius:0.75rem">
             <span style="font-size:0.8rem;color:#8892b0">
-                <span style="color:#f0f4ff;font-weight:700">{len(rooms)}</span> rooms total
+                <span style="color:#f0f4ff;font-weight:700">{len(rooms)}</span> rooms
             </span>
             <span style="font-size:0.8rem;color:#8892b0">
                 <span style="color:#10b981;font-weight:700">{active_count}</span> active
             </span>
             <span style="font-size:0.8rem;color:#8892b0">
                 <span style="color:#f43f5e;font-weight:700">{len(rooms)-active_count}</span> inactive
+            </span>
+            <span style="font-size:0.8rem;color:#8892b0">
+                <span style="color:#818cf8;font-weight:700">{total_capacity}</span> total seats
             </span>
         </div>
         """,
@@ -150,12 +159,13 @@ def render_rooms() -> None:
     )
 
     ac1, ac2 = st.columns(2)
-    room_names = [r["name"] for r in rooms]
+    active_rooms = [r for r in rooms if r.get("status") == "active"]
+    room_names = [r["name"] for r in active_rooms]
     sel_name = ac1.selectbox("Select Room", options=room_names, key="avail_room_select")
     sel_date = ac2.date_input("Date", value=datetime.date.today(), key="avail_date")
 
     if sel_name and sel_date:
-        room_id = next((r["room_id"] for r in rooms if r["name"] == sel_name), None)
+        room_id = next((r["room_id"] for r in active_rooms if r["name"] == sel_name), None)
         if room_id:
             with st.spinner("Fetching availability..."):
                 try:

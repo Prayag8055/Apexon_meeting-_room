@@ -14,12 +14,7 @@ class RoomRepository(ABC):
     def get(self, room_id: str) -> Optional[Room]: ...
 
     @abstractmethod
-    def list(
-        self,
-        capacity: int = None,
-        amenities: list[str] = None,
-        floor: int = None,
-    ) -> list[Room]: ...
+    def list(self, capacity: int = None, amenities: list[str] = None, floor: int = None) -> list[Room]: ...
 
     @abstractmethod
     def create(self, room: Room) -> Room: ...
@@ -36,13 +31,7 @@ class BookingRepository(ABC):
     def get(self, booking_id: str) -> Optional[Booking]: ...
 
     @abstractmethod
-    def list(
-        self,
-        user_id: str = None,
-        room_id: str = None,
-        date: str = None,
-        status: str = None,
-    ) -> list[Booking]: ...
+    def list(self, user_id: str = None, room_id: str = None, date: str = None, status: str = None) -> list[Booking]: ...
 
     @abstractmethod
     def create(self, booking: Booking) -> Booking: ...
@@ -54,13 +43,7 @@ class BookingRepository(ABC):
     def cancel(self, booking_id: str) -> Booking: ...
 
     @abstractmethod
-    def get_overlapping(
-        self,
-        room_id: str,
-        start_time: str,
-        end_time: str,
-        exclude_booking_id: str = None,
-    ) -> list[Booking]: ...
+    def get_overlapping(self, room_id: str, start_time: str, end_time: str, exclude_booking_id: str = None) -> list[Booking]: ...
 
 
 class UserRepository(ABC):
@@ -75,3 +58,6 @@ class UserRepository(ABC):
 
     @abstractmethod
     def create(self, user: User) -> User: ...
+
+    @abstractmethod
+    def update(self, user: User) -> User: ...

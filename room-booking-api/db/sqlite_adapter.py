@@ -24,11 +24,13 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id    TEXT PRIMARY KEY,
-    name       TEXT NOT NULL,
-    email      TEXT NOT NULL UNIQUE,
-    department TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL
+    user_id       TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    email         TEXT NOT NULL UNIQUE,
+    department    TEXT NOT NULL DEFAULT '',
+    role          TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin','employee')),
+    password_hash TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -49,6 +51,12 @@ CREATE INDEX IF NOT EXISTS idx_bookings_room_time ON bookings(room_id, start_tim
 CREATE INDEX IF NOT EXISTS idx_bookings_user ON bookings(user_id);
 """
 
+# Schema migration: add columns if upgrading from old schema
+_MIGRATIONS = [
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'employee'",
+    "ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''",
+]
+
 
 def _connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
@@ -57,41 +65,38 @@ def _connect(db_path: str) -> sqlite3.Connection:
     return conn
 
 
+def _run_migrations(db_path: str) -> None:
+    with _connect(db_path) as conn:
+        for sql in _MIGRATIONS:
+            try:
+                conn.execute(sql)
+            except sqlite3.OperationalError:
+                pass  # column already exists
+
+
 def _row_to_room(row: sqlite3.Row) -> Room:
     return Room(
-        room_id=row["room_id"],
-        name=row["name"],
-        floor=row["floor"],
-        capacity=row["capacity"],
-        amenities=json.loads(row["amenities"]),
-        status=row["status"],
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        room_id=row["room_id"], name=row["name"], floor=row["floor"],
+        capacity=row["capacity"], amenities=json.loads(row["amenities"]),
+        status=row["status"], created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
 
 def _row_to_booking(row: sqlite3.Row) -> Booking:
     return Booking(
-        booking_id=row["booking_id"],
-        room_id=row["room_id"],
-        user_id=row["user_id"],
-        title=row["title"],
-        start_time=row["start_time"],
-        end_time=row["end_time"],
-        status=row["status"],
-        attendees=json.loads(row["attendees"]),
-        notes=row["notes"],
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        booking_id=row["booking_id"], room_id=row["room_id"], user_id=row["user_id"],
+        title=row["title"], start_time=row["start_time"], end_time=row["end_time"],
+        status=row["status"], attendees=json.loads(row["attendees"]),
+        notes=row["notes"], created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
 
 def _row_to_user(row: sqlite3.Row) -> User:
     return User(
-        user_id=row["user_id"],
-        name=row["name"],
-        email=row["email"],
+        user_id=row["user_id"], name=row["name"], email=row["email"],
         department=row["department"],
+        role=row["role"] if "role" in row.keys() else "employee",
+        password_hash=row["password_hash"] if "password_hash" in row.keys() else "",
         created_at=row["created_at"],
     )
 
@@ -107,83 +112,42 @@ class SQLiteRoomRepo(RoomRepository):
 
     def get(self, room_id: str) -> Optional[Room]:
         with _connect(self._db_path) as conn:
-            row = conn.execute(
-                "SELECT * FROM rooms WHERE room_id = ?", (room_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM rooms WHERE room_id = ?", (room_id,)).fetchone()
         return _row_to_room(row) if row else None
 
-    def list(
-        self,
-        capacity: int = None,
-        amenities: list[str] = None,
-        floor: int = None,
-    ) -> list[Room]:
+    def list(self, capacity: int = None, amenities: list[str] = None, floor: int = None) -> list[Room]:
         query = "SELECT * FROM rooms WHERE 1=1"
         params: list = []
-
         if capacity is not None:
-            query += " AND capacity >= ?"
-            params.append(capacity)
+            query += " AND capacity >= ?"; params.append(capacity)
         if floor is not None:
-            query += " AND floor = ?"
-            params.append(floor)
-
+            query += " AND floor = ?"; params.append(floor)
         with _connect(self._db_path) as conn:
             rows = conn.execute(query, params).fetchall()
-
         rooms = [_row_to_room(r) for r in rows]
-
         if amenities:
-            rooms = [
-                r for r in rooms
-                if all(a in r.amenities for a in amenities)
-            ]
-
+            rooms = [r for r in rooms if all(a in r.amenities for a in amenities)]
         return rooms
 
     def create(self, room: Room) -> Room:
         with _connect(self._db_path) as conn:
             conn.execute(
-                """INSERT INTO rooms
-                   (room_id, name, floor, capacity, amenities, status, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    room.room_id,
-                    room.name,
-                    room.floor,
-                    room.capacity,
-                    json.dumps(room.amenities),
-                    room.status,
-                    room.created_at,
-                    room.updated_at,
-                ),
+                "INSERT INTO rooms (room_id,name,floor,capacity,amenities,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                (room.room_id, room.name, room.floor, room.capacity, json.dumps(room.amenities), room.status, room.created_at, room.updated_at),
             )
         return room
 
     def update(self, room: Room) -> Room:
         with _connect(self._db_path) as conn:
             conn.execute(
-                """UPDATE rooms
-                   SET name=?, floor=?, capacity=?, amenities=?, status=?, updated_at=?
-                   WHERE room_id=?""",
-                (
-                    room.name,
-                    room.floor,
-                    room.capacity,
-                    json.dumps(room.amenities),
-                    room.status,
-                    room.updated_at,
-                    room.room_id,
-                ),
+                "UPDATE rooms SET name=?,floor=?,capacity=?,amenities=?,status=?,updated_at=? WHERE room_id=?",
+                (room.name, room.floor, room.capacity, json.dumps(room.amenities), room.status, room.updated_at, room.room_id),
             )
         return room
 
     def delete(self, room_id: str) -> None:
         with _connect(self._db_path) as conn:
-            conn.execute(
-                "UPDATE rooms SET status = 'inactive' WHERE room_id = ?",
-                (room_id,),
-            )
+            conn.execute("UPDATE rooms SET status='inactive' WHERE room_id=?", (room_id,))
 
 
 class SQLiteBookingRepo(BookingRepository):
@@ -197,115 +161,54 @@ class SQLiteBookingRepo(BookingRepository):
 
     def get(self, booking_id: str) -> Optional[Booking]:
         with _connect(self._db_path) as conn:
-            row = conn.execute(
-                "SELECT * FROM bookings WHERE booking_id = ?", (booking_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM bookings WHERE booking_id=?", (booking_id,)).fetchone()
         return _row_to_booking(row) if row else None
 
-    def list(
-        self,
-        user_id: str = None,
-        room_id: str = None,
-        date: str = None,
-        status: str = None,
-    ) -> list[Booking]:
+    def list(self, user_id: str = None, room_id: str = None, date: str = None, status: str = None) -> list[Booking]:
         query = "SELECT * FROM bookings WHERE 1=1"
         params: list = []
-
         if user_id is not None:
-            query += " AND user_id = ?"
-            params.append(user_id)
+            query += " AND user_id=?"; params.append(user_id)
         if room_id is not None:
-            query += " AND room_id = ?"
-            params.append(room_id)
+            query += " AND room_id=?"; params.append(room_id)
         if date is not None:
-            query += " AND start_time LIKE ?"
-            params.append(f"{date}%")
+            query += " AND start_time LIKE ?"; params.append(f"{date}%")
         if status is not None:
-            query += " AND status = ?"
-            params.append(status)
-
+            query += " AND status=?"; params.append(status)
+        query += " ORDER BY start_time DESC"
         with _connect(self._db_path) as conn:
             rows = conn.execute(query, params).fetchall()
-
         return [_row_to_booking(r) for r in rows]
 
     def create(self, booking: Booking) -> Booking:
         with _connect(self._db_path) as conn:
             conn.execute(
-                """INSERT INTO bookings
-                   (booking_id, room_id, user_id, title, start_time, end_time,
-                    status, attendees, notes, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    booking.booking_id,
-                    booking.room_id,
-                    booking.user_id,
-                    booking.title,
-                    booking.start_time,
-                    booking.end_time,
-                    booking.status,
-                    json.dumps(booking.attendees),
-                    booking.notes,
-                    booking.created_at,
-                    booking.updated_at,
-                ),
+                "INSERT INTO bookings (booking_id,room_id,user_id,title,start_time,end_time,status,attendees,notes,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (booking.booking_id, booking.room_id, booking.user_id, booking.title, booking.start_time, booking.end_time, booking.status, json.dumps(booking.attendees), booking.notes, booking.created_at, booking.updated_at),
             )
         return booking
 
     def update(self, booking: Booking) -> Booking:
         with _connect(self._db_path) as conn:
             conn.execute(
-                """UPDATE bookings
-                   SET room_id=?, user_id=?, title=?, start_time=?, end_time=?,
-                       status=?, attendees=?, notes=?, updated_at=?
-                   WHERE booking_id=?""",
-                (
-                    booking.room_id,
-                    booking.user_id,
-                    booking.title,
-                    booking.start_time,
-                    booking.end_time,
-                    booking.status,
-                    json.dumps(booking.attendees),
-                    booking.notes,
-                    booking.updated_at,
-                    booking.booking_id,
-                ),
+                "UPDATE bookings SET room_id=?,user_id=?,title=?,start_time=?,end_time=?,status=?,attendees=?,notes=?,updated_at=? WHERE booking_id=?",
+                (booking.room_id, booking.user_id, booking.title, booking.start_time, booking.end_time, booking.status, json.dumps(booking.attendees), booking.notes, booking.updated_at, booking.booking_id),
             )
         return booking
 
     def cancel(self, booking_id: str) -> Booking:
         with _connect(self._db_path) as conn:
-            conn.execute(
-                "UPDATE bookings SET status = 'cancelled' WHERE booking_id = ?",
-                (booking_id,),
-            )
-            row = conn.execute(
-                "SELECT * FROM bookings WHERE booking_id = ?", (booking_id,)
-            ).fetchone()
+            conn.execute("UPDATE bookings SET status='cancelled' WHERE booking_id=?", (booking_id,))
+            row = conn.execute("SELECT * FROM bookings WHERE booking_id=?", (booking_id,)).fetchone()
         return _row_to_booking(row)
 
-    def get_overlapping(
-        self,
-        room_id: str,
-        start_time: str,
-        end_time: str,
-        exclude_booking_id: str = None,
-    ) -> list[Booking]:
-        query = (
-            "SELECT * FROM bookings "
-            "WHERE room_id = ? AND start_time < ? AND end_time > ? AND status = 'confirmed'"
-        )
+    def get_overlapping(self, room_id: str, start_time: str, end_time: str, exclude_booking_id: str = None) -> list[Booking]:
+        query = "SELECT * FROM bookings WHERE room_id=? AND start_time<? AND end_time>? AND status='confirmed'"
         params: list = [room_id, end_time, start_time]
-
         if exclude_booking_id is not None:
-            query += " AND booking_id != ?"
-            params.append(exclude_booking_id)
-
+            query += " AND booking_id!=?"; params.append(exclude_booking_id)
         with _connect(self._db_path) as conn:
             rows = conn.execute(query, params).fetchall()
-
         return [_row_to_booking(r) for r in rows]
 
 
@@ -313,6 +216,7 @@ class SQLiteUserRepo(UserRepository):
     def __init__(self, db_path: str):
         self._db_path = db_path
         self._init_schema()
+        _run_migrations(db_path)
 
     def _init_schema(self) -> None:
         with _connect(self._db_path) as conn:
@@ -320,28 +224,31 @@ class SQLiteUserRepo(UserRepository):
 
     def get(self, user_id: str) -> Optional[User]:
         with _connect(self._db_path) as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE user_id = ?", (user_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM users WHERE user_id=?", (user_id,)).fetchone()
         return _row_to_user(row) if row else None
 
     def get_by_email(self, email: str) -> Optional[User]:
         with _connect(self._db_path) as conn:
-            row = conn.execute(
-                "SELECT * FROM users WHERE email = ?", (email,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         return _row_to_user(row) if row else None
 
     def list(self) -> list[User]:
         with _connect(self._db_path) as conn:
-            rows = conn.execute("SELECT * FROM users").fetchall()
+            rows = conn.execute("SELECT * FROM users ORDER BY name").fetchall()
         return [_row_to_user(r) for r in rows]
 
     def create(self, user: User) -> User:
         with _connect(self._db_path) as conn:
             conn.execute(
-                """INSERT INTO users (user_id, name, email, department, created_at)
-                   VALUES (?, ?, ?, ?, ?)""",
-                (user.user_id, user.name, user.email, user.department, user.created_at),
+                "INSERT INTO users (user_id,name,email,department,role,password_hash,created_at) VALUES (?,?,?,?,?,?,?)",
+                (user.user_id, user.name, user.email, user.department, user.role, user.password_hash, user.created_at),
+            )
+        return user
+
+    def update(self, user: User) -> User:
+        with _connect(self._db_path) as conn:
+            conn.execute(
+                "UPDATE users SET name=?,email=?,department=?,role=?,password_hash=? WHERE user_id=?",
+                (user.name, user.email, user.department, user.role, user.password_hash, user.user_id),
             )
         return user

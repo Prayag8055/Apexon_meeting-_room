@@ -34,6 +34,8 @@ class User:
     name: str
     email: str
     department: str
+    role: str  # "admin" or "employee"
+    password_hash: str
     created_at: str
 
 

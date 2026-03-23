@@ -1,7 +1,7 @@
-"""Users page — list, register, view bookings."""
+"""Users page — list, register, view bookings with search."""
 from __future__ import annotations
 import streamlit as st
-from api_client import get_users, create_user, get_user_bookings, APIError
+from api_client import get_users, create_user, get_user_bookings, get_bookings, APIError
 from components.cards import user_card, booking_card
 from components.forms import user_form
 
@@ -13,8 +13,8 @@ def render_users() -> None:
     h_col, btn_col = st.columns([3, 1])
     with h_col:
         st.markdown(
-            '<div class="rb-page-title">👥 Users</div>'
-            '<div class="rb-page-subtitle">Manage team members and their bookings</div>',
+            '<div class="rb-page-title">👥 Team Members</div>'
+            '<div class="rb-page-subtitle">Manage team members and their booking history</div>',
             unsafe_allow_html=True,
         )
     with btn_col:
@@ -59,7 +59,14 @@ def render_users() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
+    # ── Search ────────────────────────────────────────────────────────────────
+    search = st.text_input("🔍 Search users by name, email, or department", key="user_search", placeholder="Type to search...")
+    if search:
+        q = search.lower()
+        users = [u for u in users if q in u.get("name", "").lower() or q in u.get("email", "").lower() or q in u.get("department", "").lower()]
+
     # ── Summary bar ───────────────────────────────────────────────────────────
+    depts = set(u.get("department", "") for u in users if u.get("department"))
     st.markdown(
         f"""
         <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;
@@ -67,19 +74,35 @@ def render_users() -> None:
             <span style="font-size:0.8rem;color:#8892b0">
                 <span style="color:#f0f4ff;font-weight:700">{len(users)}</span> team members
             </span>
+            <span style="font-size:0.8rem;color:#8892b0">
+                <span style="color:#818cf8;font-weight:700">{len(depts)}</span> departments
+            </span>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    # ── Get booking counts per user ───────────────────────────────────────────
+    try:
+        all_bookings = get_bookings()
+        booking_counts = {}
+        for b in all_bookings:
+            uid = b.get("user_id", "")
+            if b.get("status") == "confirmed":
+                booking_counts[uid] = booking_counts.get(uid, 0) + 1
+    except Exception:
+        booking_counts = {}
 
     # ── User grid (3 columns) ─────────────────────────────────────────────────
     for i in range(0, len(users), 3):
         cols = st.columns(3, gap="medium")
         for j, col in enumerate(cols):
             if i + j < len(users):
+                u = users[i + j]
                 with col:
                     user_card(
-                        users[i + j],
+                        u,
+                        booking_count=booking_counts.get(u.get("user_id", ""), 0),
                         on_view=lambda u: st.session_state.update({"selected_user": u}),
                     )
 
@@ -105,7 +128,7 @@ def render_users() -> None:
                                 font-size:1rem;font-weight:700;color:white;flex-shrink:0">{initials}</div>
                     <div>
                         <div style="font-size:1rem;font-weight:700;color:#f0f4ff">Bookings for {name}</div>
-                        <div style="font-size:0.75rem;color:#8892b0">{user.get('email','')}</div>
+                        <div style="font-size:0.75rem;color:#8892b0">{user.get('email','')} · {user.get('department','')}</div>
                     </div>
                 </div>
                 """,
