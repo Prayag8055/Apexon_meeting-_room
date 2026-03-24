@@ -14,9 +14,9 @@ RUN npm run build
 # ── Stage 2: Production image ────────────────────────────────
 FROM python:3.12-slim
 
-# Install nginx and supervisor
+# Install nginx, supervisor, and envsubst (for PORT substitution)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends nginx supervisor && \
+    apt-get install -y --no-install-recommends nginx supervisor gettext-base && \
     rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
@@ -49,6 +49,7 @@ ENV DB_PATH=/data/bookings.db
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+# Render sets PORT dynamically; default 80 for local Docker
 EXPOSE 80
 
 CMD ["/docker-entrypoint.sh"]

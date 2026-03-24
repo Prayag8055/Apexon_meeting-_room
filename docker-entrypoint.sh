@@ -4,10 +4,18 @@ set -e
 echo "🏢 Apexon RoomBook — Starting..."
 echo "================================="
 
+# Render sets PORT env var; default to 80 for local Docker
+export PORT=${PORT:-80}
+echo "  Listening on port: $PORT"
+
+# Substitute PORT into nginx config
+envsubst '$PORT' < /etc/nginx/conf.d/default.conf > /tmp/nginx.conf
+mv /tmp/nginx.conf /etc/nginx/conf.d/default.conf
+
 # Set Python path
 export PYTHONPATH=/app/room-booking-api
 
-# Wait for DB to be ready (first run creates it)
+# Initialize database
 echo "📦 Initializing database..."
 python -c "
 import sys
@@ -31,7 +39,6 @@ repo = SQLiteRoomRepo('/data/bookings.db')
 rooms = repo.list()
 if len(rooms) == 0:
     print('  Seeding rooms...')
-    # Start uvicorn briefly for seeding
     import subprocess, time, requests
     proc = subprocess.Popen(
         ['python', '-m', 'uvicorn', 'fastapi_app.main:app', '--host', '0.0.0.0', '--port', '8000'],
@@ -40,9 +47,7 @@ if len(rooms) == 0:
     )
     time.sleep(3)
     try:
-        # Seed rooms
         exec(open('/app/seed_rooms.py').read())
-        # Seed admin
         exec(open('/app/seed_admin.py').read())
     except Exception as e:
         print(f'  ⚠️ Seed error: {e}')
@@ -54,10 +59,9 @@ else:
 
 echo ""
 echo "🚀 Starting services..."
-echo "  Frontend: http://0.0.0.0:80"
+echo "  Frontend: http://0.0.0.0:$PORT"
 echo "  API:      http://0.0.0.0:8000"
 echo "================================="
 echo ""
 
-# Start supervisor (runs nginx + uvicorn)
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/app.conf

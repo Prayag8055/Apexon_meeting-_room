@@ -1,77 +1,71 @@
 # 🏢 Apexon RoomBook — Deployment Guide
 
-## Quick Deploy (Docker)
+## Deploy to Render.com (Recommended)
 
-### Prerequisites
-- Docker installed on the server machine
-- Port 80 available
+### Step 1: Push to GitHub
 
-### One-Command Deploy
 ```bash
-docker compose up -d --build
+# If you haven't created a GitHub repo yet:
+# 1. Go to github.com → New Repository
+# 2. Name it: apexon-roombook (or any name)
+# 3. Keep it Private, don't add README
+# 4. Copy the repo URL
+
+# Then push:
+git remote set-url origin https://github.com/YOUR_USERNAME/apexon-roombook.git
+git push -u origin dev
 ```
 
-App will be live at `http://<server-ip>` — share this URL with all employees.
+### Step 2: Deploy on Render
 
-### Default Admin Login
-- Email: `admin@apexon.com`
-- Password: `admin123`
+1. Go to [render.com](https://render.com) and sign up with GitHub
+2. Click **New +** → **Web Service**
+3. Connect your GitHub repo (`apexon-roombook`)
+4. Render auto-detects the **Dockerfile** — no config needed
+5. Set these options:
+   - **Name**: `apexon-roombook`
+   - **Region**: Pick closest to your office
+   - **Instance Type**: Free (or Starter for better performance)
+   - **Branch**: `dev`
+6. Under **Advanced** → **Add Disk**:
+   - **Mount Path**: `/data`
+   - **Size**: 1 GB (enough for SQLite)
+7. Click **Deploy Web Service**
+
+### Step 3: Done!
+
+- Render gives you a URL like `https://apexon-roombook.onrender.com`
+- Share this URL with all employees
+- First deploy auto-seeds 12 rooms + admin account
+- **Admin login**: `admin@apexon.com` / `admin123`
 
 ---
 
-## Deploy to Cloud (Recommended for company-wide access)
+## Local Development
 
-### Option 1: AWS EC2 (Most common for companies)
+```bash
+# Start API + React dev server
+python serve.py
+# Visit http://localhost:8000
+```
 
-1. Launch an EC2 instance (t3.small is enough, Amazon Linux 2023)
-2. Open port 80 in Security Group
-3. SSH into the instance:
-   ```bash
-   sudo yum install docker git -y
-   sudo systemctl start docker
-   sudo usermod -aG docker ec2-user
-   git clone <your-repo-url>
-   cd Apexon_meeting-_room
-   docker compose up -d --build
-   ```
-4. Access at `http://<ec2-public-ip>`
-5. (Optional) Point a domain like `roombook.apexon.com` to the EC2 IP
+## Docker (Local or Self-Hosted)
 
-### Option 2: Railway (Easiest, no server management)
-
-1. Push code to GitHub
-2. Go to [railway.app](https://railway.app)
-3. New Project → Deploy from GitHub repo
-4. Railway auto-detects the Dockerfile
-5. Add a volume mount for `/data` (for SQLite persistence)
-6. Get your public URL — done
-
-### Option 3: Render
-
-1. Push code to GitHub
-2. Go to [render.com](https://render.com)
-3. New Web Service → Connect GitHub repo
-4. Set Docker as the build method
-5. Add a persistent disk mounted at `/data`
-6. Deploy — get your URL
-
-### Option 4: Azure / GCP
-
-Same Docker approach — push to Azure Container Instances or Google Cloud Run.
+```bash
+docker compose up -d --build
+# Visit http://localhost
+```
 
 ---
 
 ## Data Persistence
 
-The SQLite database is stored at `/data/bookings.db` inside the container.
-The `docker-compose.yml` uses a named volume (`roombook-data`) so data survives container restarts.
+- SQLite database stored at `/data/bookings.db` in the container
+- Render persistent disk keeps data across deploys
+- `docker-compose.yml` uses a named volume for local Docker
 
-For production with many concurrent users, consider migrating to PostgreSQL.
+## Default Admin
 
----
-
-## Custom Domain (Optional)
-
-Once deployed, you can point a domain like `roombook.apexon.com`:
-1. Add an A record pointing to your server IP
-2. For HTTPS, add Cloudflare in front (free) or use Let's Encrypt with certbot
+- Email: `admin@apexon.com`
+- Password: `admin123`
+- Change this after first login!
