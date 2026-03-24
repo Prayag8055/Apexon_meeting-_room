@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  roombook:
+    build: .
+    container_name: apexon-roombook
+    ports:
+      - "80:80"
+    volumes:
+      - roombook-data:/data
+    restart: unless-stopped
+    environment:
+      - DB_PATH=/data/bookings.db
+
+volumes:
+  roombook-data:
