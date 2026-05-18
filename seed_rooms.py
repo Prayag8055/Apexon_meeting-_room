@@ -1,97 +1,105 @@
-import sqlite3
+"""Seed script — creates all rooms via the Room Booking API."""
+import requests
 import csv
-import uuid
 import json
-from datetime import datetime
 
-DB_FILE = "bookings.db"
+
+BASE_URL = "http://localhost:8000"
+
+# Rules:
+# - No floor field (all same floor)
+# - AC is everywhere
+# - Only Front End Meeting Room 07 has Standing Desk
+# - Board Room 01, Board Room Side Cabin 02, Lazy Lawn 04 have Projector
+# - Lazy Lawn 04 has Natural Light
+# - Board rooms + Lazy Lawn have Video Conferencing + Whiteboard
+# - Other rooms get Whiteboard + Phone as appropriate
+
+def load_rooms_from_csv(file_path):
+    rooms = []
+
+    def clean(v):
+        return v.strip() if v and v.strip() != "" else None
+
+    # ✅ ADD IT HERE
+    def yes_no(v):
+        return True if v and v.strip().lower() == "yes" else False
+
+    with open(file_path, encoding="cp1252", errors="ignore") as f:
+        reader = csv.DictReader(f)
+
+        for row in reader:
+            try:
+                amenities_raw = clean(
+                    row.get("Amenities Available (Projector, Whiteboard, TV,")
+                )
+
+                if amenities_raw and amenities_raw.lower() != "no":
+                    amenities = [a.strip() for a in amenities_raw.split(",")]
+                else:
+                    amenities = []
+
+                capacity = clean(row.get("Seating Capacity"))
+                capacity = int(capacity) if capacity and capacity.isdigit() else 0
+
+                # ✅ USE IT HERE
+                room = {
+                    "name": clean(row.get("Room Name")),
+                    "location": clean(row.get("Location / Building")) or "Default",
+                    "floor": int(clean(row.get("Floor")) or 1),
+                    "capacity": capacity,
+                    "amenities": amenities,
+                    "status": "active",
+
+                    "room_type": clean(row.get("Room Type")),
+                    "cabin_type": clean(row.get("Cabin Type")),
+                    "vc_enabled": yes_no(row.get("VC Enabled")),
+                    "power_points": yes_no(row.get("Power Points")),
+                }
+
+                rooms.append(room)
+
+            except Exception as e:
+                print("❌ Error parsing row:", e)
+
+    return rooms
+
+
 CSV_FILE = "location_wise_rooms_cleaned.csv"
+ROOMS = load_rooms_from_csv(CSV_FILE)
 
-conn = sqlite3.connect(DB_FILE)
-cursor = conn.cursor()
+def main():
+    print("\n🏢 Apexon Room Booking — Room Seeder")
+    print("=" * 40)
+    print(f"Connecting to {BASE_URL}...")
+    try:
+        r = requests.get(f"{BASE_URL}/health", timeout=5)
+        r.raise_for_status()
+        print("✅ API is up\n")
+    except Exception as e:
+        print(f"❌ Cannot reach API: {e}")
+        print("   Make sure to run: python run_api.py")
+        return
 
-now = datetime.now().isoformat()
-inserted = 0
-
-def clean(v):
-    return v.strip() if v and v.strip() != "" else None
-
-def yes_no(v):
-    return 1 if v and v.strip().lower() == "yes" else 0
-
-print("📥 Importing CSV...")
-
-with open(CSV_FILE, encoding="cp1252", errors="ignore") as f:
-    reader = csv.DictReader(f)
-
-    for row in reader:
+    created = 0
+    for room in ROOMS:
         try:
-            name = clean(row.get("Room Name"))
-            location = clean(row.get("Location / Building"))
-            floor = clean(row.get("Floor"))
-            room_type = clean(row.get("Room Type"))
-            cabin_type = clean(row.get("Cabin Type"))
+            resp = requests.post(f"{BASE_URL}/rooms", json=room, timeout=5)
+            if resp.status_code == 201:
+                data = resp.json()
+                print(f"  ✅ Created: {data['name']}  (id: {data['room_id'][:8]}…)")
+                created += 1
+            
+            elif resp.status_code == 400 and "already exists" in resp.text.lower():
+                print(f"⏩ Skipped (duplicate): {room['name']}")
 
-            capacity = clean(row.get("Seating Capacity"))
-            capacity = int(capacity) if capacity and capacity.isdigit() else 0
-
-            amenities_raw = clean(
-                row.get("Amenities Available (Projector, Whiteboard, TV,")
-            )
-
-            # Convert amenities to JSON list
-            if amenities_raw and amenities_raw.lower() != "no":
-                amenities = json.dumps(
-                    [a.strip() for a in amenities_raw.split(",")]
-                )
             else:
-                amenities = "[]"
-
-            vc_enabled = yes_no(row.get("VC Enabled"))
-            power_points = yes_no(row.get("Power Points"))
-
-            room_id = str(uuid.uuid4())
-
-            cursor.execute("""
-                INSERT INTO location_wise_rooms (
-                    room_id,
-                    name,
-                    location,
-                    floor,
-                    room_type,
-                    cabin_type,
-                    capacity,
-                    amenities,
-                    vc_enabled,
-                    power_points,
-                    status,
-                    created_at,
-                    updated_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                room_id,
-                name,
-                location,
-                floor,
-                room_type,
-                cabin_type,
-                capacity,
-                amenities,
-                vc_enabled,
-                power_points,
-                "active",
-                now,
-                now
-            ))
-
-            inserted += 1
-
+                print(f"  ⚠️  {room['name']} — {resp.status_code}: {resp.text[:80]}")
         except Exception as e:
-            print("❌ Error in row:", row)
-            print(e)
+            print(f"  ❌ {room['name']} — {e}")
 
-conn.commit()
-conn.close()
+    print(f"\n{created}/{len(ROOMS)} rooms created.")
 
-print(f"🎉 Done! Inserted {inserted} rows successfully.")
+
+if __name__ == "__main__":
+    main()
