@@ -13,6 +13,8 @@ export default function SlotPicker({ room, onBooked, onClose }) {
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [ibStart, setIbStart] = useState(null);
+  const [ibEnd, setIbEnd] = useState(null)
 
   useEffect(() => {
     setLoading(true);
@@ -56,6 +58,8 @@ export default function SlotPicker({ room, onBooked, onClose }) {
     } finally { setBooking(false); }
   };
 
+  const buildDateTime = (date, time) => `${date}T${time}:00`;
+
   return (
     <div className="animate-fade-up mt-4">
       <div className="h-px bg-gradient-to-r from-transparent via-indigo-500 to-transparent mb-5" />
@@ -75,6 +79,48 @@ export default function SlotPicker({ room, onBooked, onClose }) {
         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Date</label>
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
           className="px-4 py-2.5 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-sm focus:border-indigo-500 outline-none transition-all" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-6 mb-4">
+
+        {/* START TIME */}
+        <div className="bg-[#0b1224] border border-[#1e2a45] rounded-2xl p-4">
+          <div className="text-sm font-semibold text-slate-400 mb-2">
+            Start Time
+          </div>
+
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#070c1a] border border-[#1e2a45] mb-3">
+            <span className="text-slate-500">🕒</span>
+            <input
+              type="time"
+              value={ibStart ? ibStart.slice(11, 16) : ""}
+              onChange={e =>
+                setIbStart(buildDateTime(date, e.target.value))
+              }
+              className="bg-transparent w-full text-slate-100 text-sm outline-none"
+            />
+          </div>
+        </div>
+
+        {/* END TIME */}
+        <div className="bg-[#0b1224] border border-[#1e2a45] rounded-2xl p-4">
+          <div className="text-sm font-semibold text-slate-400 mb-2">
+            End Time
+          </div>
+
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#070c1a] border border-[#1e2a45] mb-3">
+            <span className="text-slate-500">🕒</span>
+            <input
+              type="time"
+              value={ibEnd ? ibEnd.slice(11, 16) : ""}
+              onChange={e =>
+                setIbEnd(buildDateTime(date, e.target.value))
+              }
+              className="bg-transparent w-full text-slate-100 text-sm outline-none"
+            />
+          </div>
+        </div>
+
       </div>
 
       {error && (
@@ -99,11 +145,10 @@ export default function SlotPicker({ room, onBooked, onClose }) {
               const picked = selectedSlot?.start_time === slot.start_time;
               return (
                 <button key={i} onClick={() => setSelectedSlot(slot)}
-                  className={`py-2 rounded-xl text-xs font-bold transition-all ${
-                    picked
-                      ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 scale-105'
-                      : 'bg-[#0f1420] border border-[#1e2a45] text-slate-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-500/5'
-                  }`}>
+                  className={`py-2 rounded-xl text-xs font-bold transition-all ${picked
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 scale-105'
+                    : 'bg-[#0f1420] border border-[#1e2a45] text-slate-400 hover:border-indigo-500 hover:text-indigo-300 hover:bg-indigo-500/5'
+                    }`}>
                   {t}
                 </button>
               );
@@ -113,11 +158,11 @@ export default function SlotPicker({ room, onBooked, onClose }) {
       )}
 
       {/* Confirm form */}
-      {selectedSlot && (
+      {ibStart && ibEnd && (
         <div className="animate-fade-in">
           <div className="px-4 py-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20 mb-4">
             <div className="text-sm font-semibold text-emerald-400">
-              📅 {room.name} · {date} · {selectedSlot.start_time.slice(11, 16)} – {selectedSlot.end_time.slice(11, 16)}
+              📅 {room.name} · {date} · {ibStart.slice(11, 16)} – {ibEnd.slice(11, 16)}
             </div>
           </div>
           <div className="flex gap-3 items-end">

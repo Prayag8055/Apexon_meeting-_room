@@ -1,7 +1,7 @@
 import { Badge } from './ui';
 
-export default function BookingCard({ booking, roomName, userName, onCancel, onReschedule }) {
-  const { title, status, start_time, end_time, notes } = booking;
+export default function BookingCard({ booking, roomName, userName, onCancel, onReschedule, onCheckIn, onCheckOut }) {
+  const { title, status, start_time, end_time, notes, actual_check_in, actual_check_out } = booking;
   const date = start_time?.slice(0, 10) || '';
   const sTime = start_time?.slice(11, 16) || '';
   const eTime = end_time?.slice(11, 16) || '';
@@ -10,7 +10,7 @@ export default function BookingCard({ booking, roomName, userName, onCancel, onR
   try {
     const mins = (new Date(end_time) - new Date(start_time)) / 60000;
     duration = mins >= 60 ? `${Math.floor(mins / 60)}h${mins % 60 ? mins % 60 + 'm' : ''}` : `${mins}m`;
-  } catch {}
+  } catch { }
 
   const accent = status === 'confirmed' ? '#10b981' : '#f43f5e';
 
@@ -39,6 +39,18 @@ export default function BookingCard({ booking, roomName, userName, onCancel, onR
       {/* Actions */}
       {status === 'confirmed' && (onCancel || onReschedule) && (
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+          {onCheckIn && !actual_check_in && (
+            <button onClick={() => onCheckIn(booking)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 transition-all">
+              ⏱️ Check In
+            </button>
+          )}
+          {onCheckOut && actual_check_in && !actual_check_out && (
+            <button onClick={() => onCheckOut(booking)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-yellow-500/20 text-yellow-400 hover:bg-yellow-500/10 transition-all">
+              🚪 Check Out
+            </button>
+          )}
           {onReschedule && (
             <button onClick={() => onReschedule(booking)}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#1e2a45] text-slate-400 hover:border-indigo-500 hover:text-indigo-300 transition-all">

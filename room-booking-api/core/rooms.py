@@ -2,14 +2,14 @@ import uuid
 from datetime import datetime
 
 try:
-    from .models import Room, BookingError
+    from .models import Room, BookingError , LocationWiseRoom
     from ..db.base import RoomRepository
 except ImportError:
-    from core.models import Room, BookingError  # type: ignore
+    from core.models import Room, BookingError , LocationWiseRoom # type: ignore
     from db.base import RoomRepository  # type: ignore
 
 
-def get_room(repo: RoomRepository, room_id: str) -> Room:
+def get_room(repo: RoomRepository, room_id: str) -> LocationWiseRoom:
     room = repo.get(room_id)
     if room is None:
         raise BookingError("room not found", http_status=404)
@@ -21,7 +21,7 @@ def list_rooms(
     capacity: int = None,
     amenities: list[str] = None,
     floor: int = None,
-) -> list[Room]:
+) -> list[LocationWiseRoom]:
     return repo.list(capacity=capacity, amenities=amenities, floor=floor)
 
 
@@ -41,14 +41,14 @@ def _validate_room_data(data: dict, require_name: bool = True) -> None:
         raise BookingError("invalid status", http_status=422)
 
 
-def create_room(repo: RoomRepository, data: dict) -> Room:
+def create_room(repo: RoomRepository, data: dict) -> LocationWiseRoom:
     _validate_room_data(data, require_name=True)
 
     if data.get("capacity") is None:
         raise BookingError("capacity must be at least 1", http_status=422)
 
     now = datetime.utcnow().isoformat()
-    room = Room(
+    room = LocationWiseRoom(
         room_id=str(uuid.uuid4()),
         name=data["name"].strip(),
         floor=data.get("floor", 1),
@@ -61,7 +61,7 @@ def create_room(repo: RoomRepository, data: dict) -> Room:
     return repo.create(room)
 
 
-def update_room(repo: RoomRepository, room_id: str, data: dict) -> Room:
+def update_room(repo: RoomRepository, room_id: str, data: dict) -> LocationWiseRoom:
     room = repo.get(room_id)
     if room is None:
         raise BookingError("room not found", http_status=404)

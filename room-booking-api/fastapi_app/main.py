@@ -183,6 +183,31 @@ def create_app(
     async def get_user_bookings_route(user_id: str):
         return [_to_dict(b) for b in users_core.get_user_bookings(booking_repo, user_id)]
 
+    @app.post("/bookings/{booking_id}/checkin")
+    async def checkin_booking_route(booking_id: str):
+        # Set actual_check_in to now if not already set
+        import datetime
+        booking = bookings_core.get_booking(booking_repo, booking_id)
+        if booking.actual_check_in:
+            return JSONResponse(status_code=409, content={"error": "Already checked in"})
+        booking.actual_check_in = datetime.datetime.utcnow().isoformat()
+        bookings_core.save_booking(booking_repo, booking)
+        return _to_dict(booking)
+
+    @app.post("/bookings/{booking_id}/checkout")
+    async def checkout_booking_route(booking_id: str):
+        # Set actual_check_out to now if not already set
+        import datetime
+        booking = bookings_core.get_booking(booking_repo, booking_id)
+        if booking.actual_check_out:
+            return JSONResponse(status_code=409, content={"error": "Already checked out"})
+        booking.actual_check_out = datetime.datetime.utcnow().isoformat()
+        # If checking out early, update end_time for availability
+        if booking.actual_check_out < booking.end_time:
+            booking.end_time = booking.actual_check_out
+        bookings_core.save_booking(booking_repo, booking)
+        return _to_dict(booking)
+
     return app
 
 

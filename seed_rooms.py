@@ -1,133 +1,97 @@
-"""Seed script — creates all 12 rooms via the Room Booking API."""
-import requests
+import sqlite3
+import csv
+import uuid
+import json
+from datetime import datetime
 
-BASE_URL = "http://localhost:8000"
+DB_FILE = "bookings.db"
+CSV_FILE = "location_wise_rooms_cleaned.csv"
 
-# Rules:
-# - No floor field (all same floor)
-# - AC is everywhere
-# - Only Front End Meeting Room 07 has Standing Desk
-# - Board Room 01, Board Room Side Cabin 02, Lazy Lawn 04 have Projector
-# - Lazy Lawn 04 has Natural Light
-# - Board rooms + Lazy Lawn have Video Conferencing + Whiteboard
-# - Other rooms get Whiteboard + Phone as appropriate
+conn = sqlite3.connect(DB_FILE)
+cursor = conn.cursor()
 
-ROOMS = [
-    {
-        "name": "Board Room 01",
-        "floor": 1,
-        "capacity": 20,
-        "amenities": ["Projector", "Video Conferencing", "Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Board Room Side Cabin 02 (Prajyot Gandhi)",
-        "floor": 1,
-        "capacity": 6,
-        "amenities": ["Projector", "Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Cabin 03 (Nitesh Palresa)",
-        "floor": 1,
-        "capacity": 4,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Lazy Lawn 04 (Conference Room)",
-        "floor": 1,
-        "capacity": 30,
-        "amenities": ["Projector", "Video Conferencing", "Whiteboard", "Natural Light", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Cabin 05 (Amay Bhide)",
-        "floor": 1,
-        "capacity": 4,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Jump Start Cabin 06",
-        "floor": 1,
-        "capacity": 8,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Front End Meeting Room 07",
-        "floor": 1,
-        "capacity": 12,
-        "amenities": ["Whiteboard", "Standing Desk", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Open Secret Cabin 08",
-        "floor": 1,
-        "capacity": 6,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Critics Court Cabin 09",
-        "floor": 1,
-        "capacity": 8,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Jabbers Joint Cabin 10",
-        "floor": 1,
-        "capacity": 10,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Hearls Hault Cabin 11",
-        "floor": 1,
-        "capacity": 8,
-        "amenities": ["Whiteboard", "Phone", "Air Conditioning"],
-        "status": "active",
-    },
-    {
-        "name": "Lab Cabin 12",
-        "floor": 1,
-        "capacity": 15,
-        "amenities": ["Whiteboard", "Air Conditioning"],
-        "status": "active",
-    },
-]
+now = datetime.now().isoformat()
+inserted = 0
 
+def clean(v):
+    return v.strip() if v and v.strip() != "" else None
 
-def main():
-    print("\n🏢 Apexon Room Booking — Room Seeder")
-    print("=" * 40)
-    print(f"Connecting to {BASE_URL}...")
-    try:
-        r = requests.get(f"{BASE_URL}/health", timeout=5)
-        r.raise_for_status()
-        print("✅ API is up\n")
-    except Exception as e:
-        print(f"❌ Cannot reach API: {e}")
-        print("   Make sure to run: python run_api.py")
-        return
+def yes_no(v):
+    return 1 if v and v.strip().lower() == "yes" else 0
 
-    created = 0
-    for room in ROOMS:
+print("📥 Importing CSV...")
+
+with open(CSV_FILE, encoding="cp1252", errors="ignore") as f:
+    reader = csv.DictReader(f)
+
+    for row in reader:
         try:
-            resp = requests.post(f"{BASE_URL}/rooms", json=room, timeout=5)
-            if resp.status_code == 201:
-                data = resp.json()
-                print(f"  ✅ Created: {data['name']}  (id: {data['room_id'][:8]}…)")
-                created += 1
+            name = clean(row.get("Room Name"))
+            location = clean(row.get("Location / Building"))
+            floor = clean(row.get("Floor"))
+            room_type = clean(row.get("Room Type"))
+            cabin_type = clean(row.get("Cabin Type"))
+
+            capacity = clean(row.get("Seating Capacity"))
+            capacity = int(capacity) if capacity and capacity.isdigit() else 0
+
+            amenities_raw = clean(
+                row.get("Amenities Available (Projector, Whiteboard, TV,")
+            )
+
+            # Convert amenities to JSON list
+            if amenities_raw and amenities_raw.lower() != "no":
+                amenities = json.dumps(
+                    [a.strip() for a in amenities_raw.split(",")]
+                )
             else:
-                print(f"  ⚠️  {room['name']} — {resp.status_code}: {resp.text[:80]}")
+                amenities = "[]"
+
+            vc_enabled = yes_no(row.get("VC Enabled"))
+            power_points = yes_no(row.get("Power Points"))
+
+            room_id = str(uuid.uuid4())
+
+            cursor.execute("""
+                INSERT INTO location_wise_rooms (
+                    room_id,
+                    name,
+                    location,
+                    floor,
+                    room_type,
+                    cabin_type,
+                    capacity,
+                    amenities,
+                    vc_enabled,
+                    power_points,
+                    status,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                room_id,
+                name,
+                location,
+                floor,
+                room_type,
+                cabin_type,
+                capacity,
+                amenities,
+                vc_enabled,
+                power_points,
+                "active",
+                now,
+                now
+            ))
+
+            inserted += 1
+
         except Exception as e:
-            print(f"  ❌ {room['name']} — {e}")
+            print("❌ Error in row:", row)
+            print(e)
 
-    print(f"\n{created}/{len(ROOMS)} rooms created.")
+conn.commit()
+conn.close()
 
-
-if __name__ == "__main__":
-    main()
+print(f"🎉 Done! Inserted {inserted} rows successfully.")

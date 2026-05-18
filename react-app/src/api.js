@@ -53,4 +53,8 @@ export const getUsers = () => request('GET', '/users');
 export const createUser = (payload) => request('POST', '/users', payload);
 export const getUserBookings = (id) => request('GET', `/users/${id}/bookings`);
 
+// Check-in/Check-out
+export const checkInBooking = (id) => request('POST', `/bookings/${id}/checkin`);
+export const checkOutBooking = (id) => request('POST', `/bookings/${id}/checkout`);
+
 export { APIError };

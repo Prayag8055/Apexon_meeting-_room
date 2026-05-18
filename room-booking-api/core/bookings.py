@@ -181,7 +181,10 @@ def update_booking(
     booking.updated_at = _now_iso()
     return booking_repo.update(booking)
 
-
+# Save booking (for check-in/out)
+def save_booking(booking_repo: BookingRepository, booking: Booking) -> Booking:
+    booking.updated_at = _now_iso()
+    return booking_repo.update(booking)
 # ---------------------------------------------------------------------------
 # Task 5.8 — compute_free_slots + get_room_availability
 # ---------------------------------------------------------------------------

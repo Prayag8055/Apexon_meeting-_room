@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional , List
 
 
 @dataclass
@@ -14,6 +15,28 @@ class Room:
 
 
 @dataclass
+class LocationWiseRoom:
+    # Required fields (NON-default) — must come first
+    room_id: str
+    name: str
+    location: str
+    floor: int
+    capacity: int
+    amenities: List[str]
+    status: str
+    created_at: str
+    updated_at: str
+
+    # Optional fields (DEFAULT values) — must come last
+    building: Optional[str] = None
+    room_type: Optional[str] = None
+    cabin_type: Optional[str] = None
+    vc_enabled: bool = False
+    power_points: bool = False
+    remarks: Optional[str] = None
+
+
+@dataclass
 class Booking:
     booking_id: str
     room_id: str
@@ -26,6 +49,8 @@ class Booking:
     notes: str
     created_at: str
     updated_at: str
+    actual_check_in: str = None
+    actual_check_out: str = None
 
 
 @dataclass

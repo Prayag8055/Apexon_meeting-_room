@@ -4,26 +4,28 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 try:
-    from ..core.models import Room, Booking, User
+    from ..core.models import Room, Booking, User , LocationWiseRoom
 except ImportError:
-    from core.models import Room, Booking, User  # type: ignore
+    from core.models import Room, Booking, User, LocationWiseRoom  # type: ignore
 
 
 class RoomRepository(ABC):
     @abstractmethod
-    def get(self, room_id: str) -> Optional[Room]: ...
+    def get(self, room_id: str) -> Optional[LocationWiseRoom]: ...
 
     @abstractmethod
-    def list(self, capacity: int = None, amenities: list[str] = None, floor: int = None) -> list[Room]: ...
+    def list(self, capacity: int = None, amenities: list[str] = None, floor: int = None) -> list[LocationWiseRoom]: ...
 
     @abstractmethod
-    def create(self, room: Room) -> Room: ...
+    def create(self, room: LocationWiseRoom) -> LocationWiseRoom: ...
 
     @abstractmethod
-    def update(self, room: Room) -> Room: ...
+    def update(self, room: LocationWiseRoom) -> LocationWiseRoom: ...
 
     @abstractmethod
     def delete(self, room_id: str) -> None: ...
+
+
 
 
 class BookingRepository(ABC):

@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../AuthContext';
-import { getRooms, getUsers, getBookings, cancelBooking, updateBooking } from '../api';
+import { getRooms, getUsers, getBookings, cancelBooking, updateBooking, checkInBooking, checkOutBooking } from '../api';
 import { PageHeader, SectionHeader, EmptyState } from '../components/ui';
 import RoomCard from '../components/RoomCard';
 import SlotPicker from '../components/SlotPicker';
 import BookingCard from '../components/BookingCard';
 import { format } from 'date-fns';
+import { useLocation } from "../LocationContext";
 
 export default function BookingsPage() {
+  const { location } = useLocation();
   const { user, isAdmin } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -30,6 +32,21 @@ export default function BookingsPage() {
   const [filterRoom, setFilterRoom] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [capacityFilter, setCapacityFilter] = useState("any");
+  const [amenityFilters, setAmenityFilters] = useState([]);
+
+  const AMENITIES = [
+    "Projector",
+    "Wifi",
+    "AC",
+    "Whiteboard",
+    "Coffee Bar",
+    "Video Call",
+    "TV",
+  ];
+
   const reload = useCallback(() => {
     setLoading(true);
     Promise.all([
@@ -41,10 +58,33 @@ export default function BookingsPage() {
       .finally(() => setLoading(false));
   }, [isAdmin, user]);
 
+  // Check‑in / check‑out handlers now live inside the component so they can call `reload`
+  const handleCheckIn = async (booking) => {
+    try {
+      await checkInBooking(booking.booking_id);
+      reload();
+    } catch (e) {
+      alert(e.detail || e.message);
+    }
+  };
+
+  const handleCheckOut = async (booking) => {
+    try {
+      await checkOutBooking(booking.booking_id);
+      reload();
+    } catch (e) {
+      alert(e.detail || e.message);
+    }
+  };
+
   useEffect(reload, [reload]);
 
-  const activeRooms = rooms.filter(r => r.status === 'active');
-  const roomMap = Object.fromEntries(rooms.map(r => [r.room_id, r.name]));
+  const cityRooms = useMemo(() => {
+    return rooms.filter(r => r.location === location);
+  }, [rooms, location]);
+
+  const activeRooms = cityRooms.filter(r => r.status === 'active' || r.status === '');
+  const roomMap = Object.fromEntries(cityRooms.map(r => [r.room_id, r.name]));
   const userMap = Object.fromEntries(users.map(u => [u.user_id, u.name]));
 
   // Filtered bookings
@@ -88,20 +128,147 @@ export default function BookingsPage() {
 
   if (loading) return <div className="text-center py-20 text-slate-500">Loading...</div>;
 
+  const filteredRooms = activeRooms.filter(room => {
+    // Search by name or amenities
+    const searchMatch =
+      room.name.toLowerCase().includes(search.toLowerCase()) ||
+      room.amenities?.some(a =>
+        a.toLowerCase().includes(search.toLowerCase())
+      );
+
+    // Status
+    const statusMatch =
+      statusFilter === "all" || room.status === statusFilter;
+
+    // Capacity
+    const capacityMatch =
+      capacityFilter === "any" ||
+      (capacityFilter === "small" && room.capacity <= 4) ||
+      (capacityFilter === "medium" && room.capacity >= 5 && room.capacity <= 10) ||
+      (capacityFilter === "large" && room.capacity > 10);
+
+    // Amenities
+    const amenityMatch =
+      amenityFilters.length === 0 ||
+      amenityFilters.every(a => room.amenities?.includes(a));
+
+    return searchMatch && statusMatch && capacityMatch && amenityMatch;
+  });
+
   return (
     <div className="animate-fade-up">
       <PageHeader title="📅 Book a Room" subtitle="Select a room, pick a time slot, and confirm your booking" />
 
+
       {/* Room Cards Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-2">
-        {activeRooms.map(room => (
-          <RoomCard
-            key={room.room_id}
-            room={room}
-            selected={selectedRoom?.room_id === room.room_id}
-            onSelect={(r) => setSelectedRoom(selectedRoom?.room_id === r.room_id ? null : r)}
-          />
-        ))}
+      <div className="flex gap-6">
+
+        {/* Filters Sidebar */}
+        <div className="w-[260px] shrink-0 p-4 rounded-2xl bg-gradient-to-br from-[#0f1420] to-[#161c2e] border border-[#1e2a45]">
+
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-bold text-indigo-400">⚙ Filters</span>
+            <button
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+                setCapacityFilter("any");
+                setAmenityFilters([]);
+              }}
+              className="text-xs text-slate-400 hover:text-rose-400"
+            >
+              Reset
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="mb-4">
+            <label className="block text-xs text-slate-500 mb-1">SEARCH</label>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Name or feature..."
+              className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-sm"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="mb-4">
+            <label className="block text-xs text-slate-500 mb-1">STATUS</label>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-sm"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          {/* Capacity */}
+          <div className="mb-4">
+            <label className="block text-xs text-slate-500 mb-1">CAPACITY</label>
+            <select
+              value={capacityFilter}
+              onChange={e => setCapacityFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-sm"
+            >
+              <option value="any">Any</option>
+              <option value="small">1–4</option>
+              <option value="medium">5–10</option>
+              <option value="large">10+</option>
+            </select>
+          </div>
+
+          {/* Amenities */}
+          <div>
+            <label className="block text-xs text-slate-500 mb-2">AMENITIES</label>
+            <div className="space-y-2">
+              {AMENITIES.map(a => (
+                <label key={a} className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={amenityFilters.includes(a)}
+                    onChange={() =>
+                      setAmenityFilters(prev =>
+                        prev.includes(a)
+                          ? prev.filter(x => x !== a)
+                          : [...prev, a]
+                      )
+                    }
+                  />
+                  {a}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+
+
+        {/* Room Cards Grid */}
+        <div className="flex-1">
+          <div className="grid grid-cols-3 gap-4 mb-2">
+            {filteredRooms.map(room => (
+              <RoomCard
+                key={room.room_id}
+                room={room}
+                selected={selectedRoom?.room_id === room.room_id}
+                onSelect={r =>
+                  setSelectedRoom(
+                    selectedRoom?.room_id === r.room_id ? null : r
+                  )
+                }
+              />
+            ))}
+          </div>
+
+          {filteredRooms.length === 0 && (
+            <EmptyState icon="🔍" text="No rooms match the filters." />
+          )}
+        </div>
+
       </div>
 
       {activeRooms.length === 0 && <EmptyState icon="🏗️" text="No active rooms available." />}
@@ -194,7 +361,7 @@ export default function BookingsPage() {
         <select value={filterRoom} onChange={e => setFilterRoom(e.target.value)}
           className="px-3 py-2 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-xs focus:border-indigo-500 outline-none">
           <option value="">All Rooms</option>
-          {rooms.map(r => <option key={r.room_id} value={r.room_id}>{r.name}</option>)}
+          {cityRooms.map(r => <option key={r.room_id} value={r.room_id}>{r.name}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           className="px-3 py-2 rounded-xl bg-[#0a0f1e] border border-[#1e2a45] text-slate-100 text-xs focus:border-indigo-500 outline-none">
@@ -240,6 +407,8 @@ export default function BookingsPage() {
                 });
                 setRescheduleError('');
               } : undefined}
+              onCheckIn={canModify ? handleCheckIn : undefined}
+              onCheckOut={canModify ? handleCheckOut : undefined}
             />
           );
         })

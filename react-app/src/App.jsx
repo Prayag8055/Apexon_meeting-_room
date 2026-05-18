@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
+import { useTheme } from "./ThemeContext"; // ✅ ADD THIS
+import { useEffect } from "react"; // ✅ ADD THIS
+
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
@@ -24,12 +27,21 @@ function ProtectedRoutes() {
 }
 
 export default function App() {
+  const { theme } = useTheme(); // ✅ get theme
+
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/*" element={<ProtectedRoutes />} />
-      </Routes>
-    </AuthProvider>
+    <div
+      className={`min-h-screen ${theme === "dark"
+        ? "bg-[#0a0f1e] text-white"
+        : "bg-white text-black"
+        }`}
+    >
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<ProtectedRoutes />} />
+        </Routes>
+      </AuthProvider>
+    </div>
   );
 }

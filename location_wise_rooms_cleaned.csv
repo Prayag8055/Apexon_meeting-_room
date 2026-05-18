@@ -1,0 +1,114 @@
+S.NO.,Room Name,Location / Building,Floor,Room Type,Cabin Type,Seating Capacity,"Amenities Available (Projector, Whiteboard, TV,",VC Enabled,Power Points
+1,Cassiopeia,Coimbatore,2,,Cabin,2,No,No,Yes
+2,Sagittarius,Coimbatore,2,,Cabin,2,No,No,Yes
+3,Pegasus,Coimbatore,2,,Cabin,2,No,No,Yes
+4,Kilimanjaro,Coimbatore,2,Meeting room,,6,White board,No,Yes
+5,Virgo,Coimbatore,2,Meeting room,,3,No,No,Yes
+6,Aquarius,Coimbatore,2,,Cabin,2,White board,No,Yes
+7,Aries,Coimbatore,2,IT room,,4,White board,No,Yes
+8,Meeting room,Coimbatore,1,Meeting room,,6,No,No,Yes
+9,Cabin,Coimbatore,1,,Cabin,2,No,No,Yes
+10,Training room,Coimbatore,1,Training room,,16,Projector,No,Yes
+11,Gemini,Coimbatore,4,,Cabin,2,No,No,Yes
+12,Elbrus,Coimbatore,4,Board room,,6,Projector,No,Yes
+13,Leo,Coimbatore,4,,Cabin,2,No,No,Yes
+14,Scorpius,Coimbatore,4,,Cabin,2,No,No,Yes
+15,Cygnus,Coimbatore,4,,Cabin,2,No,No,Yes
+16,Ursa major,Coimbatore,4,Meeting room,,6,No,No,Yes
+17,Orion,Coimbatore,4,,Cabin,2,No,No,Yes
+18,PHONE BOOTH-1,Chennai,7,PHONE BOOTH-1,,1,No,No,Yes
+19,PHONE BOOTH-2,Chennai,7,PHONE BOOTH-2,,1,No,No,Yes
+20,ANNAPURANA,Chennai,7,Conference room,,14,TV,No,Yes
+21,LORD'S,Chennai,7,,Cabin,3,No,No,Yes
+22,THE OVAL,Chennai,7,,Cabin,3,TV,No,Yes
+23,GABBA,Chennai,7,,Cabin,3,White board,No,Yes
+24,EDEN GARDENS,Chennai,7,Discussion room,,3,White board,No,Yes
+25,HEADINGLEY,Chennai,7,,Cabin,3,White board,No,Yes
+26,CHEPAUK,Chennai,7,,Cabin,3,White board,No,Yes
+27,WANKHEDE,Chennai,7,,Cabin,3,White board,No,Yes
+28,OLD TRAFFORD,Chennai,7,,Cabin,,White board,No,Yes
+29,TRENT BRIDGE,Chennai,7,Meeting room,,3,White board,No,Yes
+30,SABINA PARK,Chennai,7,,Cabin,3,White board,No,Yes
+31,KENSINGTON,Chennai,7,,Cabin,3,White board,No,Yes
+32,NEW LANDS,Chennai,7,,Cabin,3,White board,No,Yes
+33,MCG,Chennai,7,,Cabin,3,White board,No,Yes
+34,Sharja,Chennai,7,,Cabin,3,White board,No,Yes
+35,Everest,Bangalore Signet ,3,Board Room ,Board Room ,14-Seater,Board - Pillar  ,VC not enabled,4 Power points
+36,Sirius,Bangalore Signet ,3,VC room ,VC room ,8-Seater ,Board - Pillar,VC not enabled,3 Power Points
+37,Ben Nevis,Bangalore Signet ,3,VC room ,VC room ,10-Seater ,Samsung TV +Yealink Bar+ Yealink Wifi  Network device,VC not enabled,3 Power Points
+38,Arcturus,Bangalore Signet ,3,Discussion room ,Discussion room ,3-seater ,Board -Glass Wall ,Nil,1 power point 
+39,Vega,Bangalore Signet ,3,Discussion room ,Discussion room ,3-seater ,Board -Glass Wall ,Nil,1 power point 
+40,Rigel,Bangalore Signet ,3,Discussion room ,Discussion room ,3-seater ,Board -Glass Wall ,Nil,1 power point 
+41,Procyon,Bangalore Signet ,3,CEO - Cabin,Executive Cabin,3-Seater + Visitor Seats 2,Board -Glass Wall + Samsung TV ,VC not enabled,2 Power Points
+42,Adhara,Bangalore Signet ,3,CFO - Cabin,Executive Cabin,3-Seater + Visitor Seats 3,Board -Glass Wall + Samsung TV ,VC not enabled,2 Power Points
+43,Pollux,Bangalore Signet ,3,Manager - Cabin ,Manager - Cabin,3-Seater ,White Glass Board,Nil,1 power point 
+44,Castor,Bangalore Signet ,3,Manager - Cabin,Manager - Cabin,3-Seater ,White Glass Board,Nil,1 power point 
+45,Altair,Bangalore Signet ,3,Manager - Cabin,Manager - Cabin,3-Seater ,White Glass Board,Nil,1 power point 
+46,Capella,Bangalore Signet ,3,Manager - Cabin,Manager - Cabin,3-Seater ,White Glass Board,Nil,1 power point 
+47,Acrux,Bangalore Signet ,3,Manager - Cabin,Manager - Cabin,3-Seater ,White Glass Board,Nil,1 power point 
+48,Galieo,Mumbai,0,Conf,Meeting,4,TV/Hdmi Cable,No,Yes
+49,Newton,Mumbai,0,Conf,Meeting,4,TV/Hdmi Cable,No,Yes
+50,Curie,Mumbai,0,Conf,Meeting,3,TV/Hdmi Cable,No,Yes
+51,Bose,Mumbai,0,Conf,Meeting,3,TV/Hdmi Cable,No,Yes
+52,Raman,Mumbai,0,Conf,Meeting,4,TV/Hdmi Cable,No,Yes
+53,Tesla,Mumbai,0,Conf,Meeting,4,TV/Hdmi Cable,No,Yes
+54,Room 01,Ahmedabad,0,,Cabin,3,No,No,Yes
+55,Room 02,Ahmedabad,0,,Cabin,3,No,No,Yes
+56,Room 03,Ahmedabad,0,,Cabin,3,No,No,Yes
+57,Room 04,Ahmedabad,0,,Cabin,3,No,No,Yes
+58,Room 05,Ahmedabad,0,,Cabin,3,No,No,Yes
+59,Room 06,Ahmedabad,0,,Cabin,3,No,No,Yes
+60,Room 07,Ahmedabad,0,,Cabin,3,No,No,Yes
+61,Room 08,Ahmedabad,0,Meeting Room,,6,No,No,Yes
+62,Room 09,Ahmedabad,0,Training Room,,30,Interactive TV,Yes,Yes
+63,Room 10,Ahmedabad,0,T.A. Cabin,,8,No,No,Yes
+64,Ganges,Ahmedabad,1,Meeting Room-1,,5,No,No,Yes
+65,Mekong,Ahmedabad,1,Meeting Room-2,,5,No,No,Yes
+66,Room 11,Ahmedabad,1,Harish Nair,Cabin,3,No,No,Yes
+67,Bhavesh Mehta,Ahmedabad,1,Bhavesh Mehta,Cabin,3,No,No,Yes
+68,Nanda Devi,Ahmedabad,1,Conference room,,10,Yes,Yes,Yes
+69,Thanmes,Ahmedabad,2,Meeting Room-1,,5,No,No,Yes
+70,Danube,Ahmedabad,2,Meeting Room-2,,5,No,No,Yes
+71,Room 12,Ahmedabad,2,Meeting Room-3,,5,No,No,Yes
+72,Room 13,Ahmedabad,2,Utpal Lad,Cabin,3,No,No,Yes
+73,Room 14,Ahmedabad,2,Manikuttan,Cabin,3,No,No,Yes
+74,Ama Dablam,Ahmedabad,2,Conference room,,10,Yes,Yes,Yes
+75,Dhaulagiri,Pune,6,Board Room,Board Room ,15,Projector,No,
+76,Neural,Pune,6,,Cabin,4,No,No,
+77,Quantum,Pune,6, ,Cabin,4,No,,
+78,Mont Blanc,Pune,6,Conference room,Conference room,15,Projector,,
+79,Nexus,Pune,6,,Cabin,4,No,,
+80,Logic,Pune,6,,Discussion room ,4,No,,
+81,Pixel,Pune,6,,Cabin,4,No,,
+82,Core,Pune,6,,Discussion room ,5,No,,
+83,Datum,Pune,6,,Cabin,4,No,,
+84,Axiom,Pune,6,,Cabin,4,No,,
+85,Byte,Pune,6,,Discussion room ,4,No,,
+86,Nova,Pune,6,,Cabin,4,No,,
+87,Room 01,Hyderabad,0, ,Cabin,3,,,
+88,Room 02,Hyderabad,0,,Cabin,3,,,
+89,Room 03,Hyderabad,0,,Cabin,3,,,
+90,Room 04,Hyderabad,0,,Cabin,3,,,
+91,Room 05,Hyderabad,0,,Cabin,3,,,
+92,Room 06,Hyderabad,0,01 board room,,,,,
+93,Room 07,Hyderabad,0,1 discussion room,,,,,
+94,Kanchenjunga,Bangalore Domlur office,2,Board Room,,14,"Glass board - 1, TV -1",Yes,Wifi
+95,Cabot Cliffs,Bangalore Domlur office,2,Training Room,,18,"Glass board - 2, TV -1",No,Wifi
+96,Oakmont,Bangalore Domlur office,2,Discussion Room,,6,"Glass board - 1, TV -1",No,Wifi
+97,Eagleton,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+98,Cypress Point,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+99,Royal County Down,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+100,Pine Valley,Bangalore Domlur office,2,Discussion Room,,6,TV-1,No,Wifi
+101,Sunningdale,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+102,Royal Dornoch,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+103,Muirfield,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+104,Augusta,Bangalore Domlur office,2,Video conference Room,,6,Glass board - 1,Yes,Wifi
+105,Morfontaine,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+106,Merion,Bangalore Domlur office,2,Discussion Room,,4,Glass board - 1,No,Wifi
+107,Old Course,Bangalore Domlur office,2,Discussion Room,,6,"Glass board - 1, TV -1",No,Wifi
+108,Sand Hills,Bangalore Domlur office,2,Cabin,Cabin,3,"Glass board - 1, TV -1",Yes,Wifi
+109,Prairie Dunes,Bangalore Domlur office,2,Cabin,Cabin,3,Glass board - 1,No,Wifi
+110,Pebble Beach,Bangalore Domlur office,2,Discussion Room,,4,"Glass board - 1, TV -1",No,Wifi
+111,Winged Foot,Bangalore Domlur office,2,Cabin,Cabin,3,Glass board - 1,No,Wifi
+112,Room 01,Bangalore Domlur office,2,Cabin,Cabin,4,Glass board - 1,No,Wifi
+113,Room 02,Bangalore Domlur office,2,Cabin,Cabin,4,Glass board - 1,No,Wifi
